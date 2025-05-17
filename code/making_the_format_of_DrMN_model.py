@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import os
 import math
+import re
+from openpyxl import load_workbook
 
 input_file = r'/home/pouria/git/water-institute/data/drmn_input/input'
 output_file = r"/home/pouria/git/water-institute/data/drmn_input/output"
@@ -13,15 +15,20 @@ hydro_attribute=pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input
 
 characteristic = pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input/12_SubWatershed_Characteristics_HydroStations/12_Talesh_Anzali_SubWatershed_Characteristics_HydroStations_4040125.xlsx",sheet_name="Sheet1", skiprows=2).set_index("Point_ID")
 
-snow = pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input/12_SubWatershed_Characteristics_HydroStations/12_Talesh_Anzali_SubWatershed_Characteristics_HydroStations_4040125.xlsx",sheet_name="Sheet1").set_index("Point_ID")
+# snow = pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input/12_SubWatershed_Characteristics_HydroStations/12_Talesh_Anzali_SubWatershed_Characteristics_HydroStations_4040125.xlsx",sheet_name="Sheet1").set_index("Point_ID")
 
 hypsometric_folder=r"/home/pouria/git/water-institute/data/drmn_input/Hypsometric_Tables"
 files_and_directory = os.listdir(input_file)
 
-
-
+TemperatureGradientfolder=r"/home/pouria/git/water-institute/data/drmn_input/12 TemperatureGradient"
 for name in files_and_directory:
     path = os.path.join(input_file, name)
+    # Step 1: Load the original workbook with openpyxl
+    wb = load_workbook(path, data_only=False)
+    
+    # Step 2: Capture the tab colors of existing sheets
+    tab_colors = {sheet.title: sheet.sheet_properties.tabColor.rgb for sheet in wb.worksheets}
+    
     path1 = os.path.join(output_file, name)
     
     rename=name[:2]+name[3:6]
@@ -39,9 +46,10 @@ for name in files_and_directory:
     sim.loc[0, "Basin_3rd"] = hydro_attribute.loc[int(rename), "OID"]
     sim.loc[0, "Tc (hr)"] = characteristic.loc[int(rename), "Tc(Krp_hr)"]
     sim.loc[0, "Total Area (km2)"] = hypsometric.loc[0, "Cumulative Area (km²)"]
-    sim.loc[0, "Snow melt coeff"] = snow.loc[sim.loc[0, "Basin_3rd"], "Snow melt coeff"]
-    sim.loc[0, "Freezing temp (C)"] = snow.loc[sim.loc[0, "Basin_3rd"], "Freezing temp (C)"]
-    
+    # sim.loc[0, "Snow melt coeff"] = snow.loc[sim.loc[0, "Basin_3rd"], "Snow melt coeff"]
+    # sim.loc[0, "Freezing temp (C)"] = snow.loc[sim.loc[0, "Basin_3rd"], "Freezing temp (C)"]
+    TemperatureGradientpath=os.path.join(TemperatureGradientfolder,str(sim.loc[0, "Basin_3rd"])[:-2]+".xlsx")
+    TemperatureGradient=pd.read_excel(TemperatureGradientpath)
     
     # Extract start and end elevations
     hypsometric[['Start', 'End']] = hypsometric['Elevation Range (m)'].str.split(' - ', expand=True).astype(float)
@@ -100,9 +108,11 @@ for name in files_and_directory:
             
             
             df['Temperature'][:len(new_date)]  = tp
+            month = int(str(df.loc[0, 'Date']).split("/")[1])
+            formula=TemperatureGradient.iloc[month-1,1]
+            match = abs(float(re.search(r'([-+]?\d*\.?\d+)\*H', formula).group(1)))
             
-            
-            df['temp.lapse/zone']=
+            df['temp.lapse/zone'][0]=match*sim.loc[0,"Zone height (m)"]
             
             
             # Rename new Date column back to 'Date' to create duplicate names
@@ -110,3 +120,19 @@ for name in files_and_directory:
             
             # Write to new Excel file
             df.to_excel(writer, sheet_name=sheet_name, index=False)
+        sim.to_excel(writer, sheet_name="Geometry", index=False)
+    # Step 4: Reopen to reassign colors and reorder sheets
+    wb = load_workbook(path1)
+    
+    # Reapply original tab colors
+    for sheet in wb.worksheets:
+        if sheet.title in tab_colors and tab_colors[sheet.title] is not None:
+            sheet.sheet_properties.tabColor = tab_colors[sheet.title]
+    
+    # Move Geometry to the front
+    geometry_sheet = wb["Geometry"]
+    wb._sheets.remove(geometry_sheet)
+    wb._sheets.insert(0, geometry_sheet)
+    
+    # Step 5: Save to original path (or new path)
+    wb.save(path1)
