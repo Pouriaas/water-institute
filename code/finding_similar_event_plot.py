@@ -8,7 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 from shamsi_calender import shamsi_hourly
 
-input_file = r'/home/pouria/git/water-institute/data/checking_similarity'
+input_file = r'/home/pouria/git/water-institute/data/checking_similarity/basins'
 
 
 
@@ -139,7 +139,9 @@ for folder in files_and_directory:
             end_date=str(JalaliDate.fromordinal(end_date)).replace("-", "/")
             shamsi=shamsi_hourly(start_date,end_date)
             arr=np.full([len(shamsi),len(sim_list)+1],np.nan,dtype=object)
-            df_all=pd.DataFrame(arr,columns=["Date"]+columnss)
+            res1 = [s.replace("_hourly.xlsx","") for s in columnss]  
+            res1 = [s.replace("-","") for s in res1]  
+            df_all=pd.DataFrame(arr,columns=["Date"]+res1)
             df_all.loc[:,"Date"]=shamsi
             df_all=df_all.set_index("Date")
             
@@ -147,14 +149,14 @@ for folder in files_and_directory:
             # Fill columns from df_list
             for i, df in enumerate(sim_list):
                 # Align by index, extract the single column
-                df_all[columnss[i]] = df.iloc[:, 0].reindex(df_all.index)
+                df_all[res1[i]] = df.iloc[:, 0].reindex(df_all.index)
             df_all=df_all.reset_index()
             split_cols = df_all['Date'].str.rsplit('/', n=1, expand=True)
             split_cols.columns = ['date', 'time']  # Name the new columns
             
             # Reorder: put 'date' and 'time' at the front
             df_all = pd.concat([split_cols, df_all.drop(columns=['Date'])], axis=1)
-            df_all = df_all.dropna(thresh=df_all.shape[1] - 1)
+            # df_all = df_all.dropna(thresh=df_all.shape[1] - 1)
             # Sanitize the sheet name by replacing invalid characters
             sheet_name1 = str(df_all["date"].iloc[0])[:31].replace("/", "-")
             
