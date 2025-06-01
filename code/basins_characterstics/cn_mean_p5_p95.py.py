@@ -107,9 +107,13 @@ def process_dataset(dem_data_obj, mask_array, lats, lons, ID_COUNTRY, lat1, lon1
     
     # Calculate mean, skipping NaNs
     mean_dem = dem_data_slice.mean(skipna=True).values
-    min_dem = dem_data_slice.min().item()
-    max_dem = dem_data_slice.max().item()
 
+    # Calculate 5th and 95th percentiles, skipping NaNs
+    # quantile returns a DataArray, so use .values to get the numpy array
+    # If all values are NaN, quantile will return NaN.
+    percentiles = dem_data_slice.quantile([0.05, 0.95], skipna=True).values
+    p5_dem = percentiles[0]
+    p95_dem = percentiles[1]
     # --- End Calculations ---
 
     # Prepare the result dictionary
@@ -117,9 +121,9 @@ def process_dataset(dem_data_obj, mask_array, lats, lons, ID_COUNTRY, lat1, lon1
 
         "lat": lat1,
         "lon": lon1,
-        "dem_min": min_dem,
+        "dem_p5": p5_dem,
         "dem_mean": mean_dem, # Renamed to be more explicit
-        "dem_max": max_dem,
+        "dem_p95": p95_dem,
     }
 
     return c
