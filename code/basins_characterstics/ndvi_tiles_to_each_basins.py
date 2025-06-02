@@ -4,9 +4,9 @@ import glob
 import json
 
 # --- Configuration ---
-tiles_folder = r'/mnt/c/Users/pouria/Desktop/موسسه آب/basins_charactristics/NDVI_whole_Iran/tiles'
+tiles_folder = r'/mnt/c/Users/pouria/Desktop/موسسه آب/basins_charactristics/iran_land_cover'
 shapefile = '/home/pouria/git/water-institute/data/basins_charactristics/input/12 AllPoint SubWatershed/12_SubWatershed_All_4040123_Merged.shp'
-output_folder = '/home/pouria/git/water-institute/data/basins_charactristics/output/ndvi_cliped'
+output_folder = '/home/pouria/git/water-institute/data/basins_charactristics/output/land_cover'
 ndvi_files = glob.glob(os.path.join(tiles_folder, '*.tif'))
 
 os.makedirs(output_folder, exist_ok=True)
