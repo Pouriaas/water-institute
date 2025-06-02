@@ -1,79 +1,80 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun  2 10:16:26 2025
-
-@author: pouria
-"""
 
 import rasterio
-import geopandas as gpd
 import numpy as np
 import pandas as pd
-from rasterio.features import geometry_mask
-from rasterio.mask import mask
 from collections import Counter
 import os
+import re
 
-# Input paths
-tif_folder = "path/to/tif_files"
-basin_shapefile = "path/to/basin_shapefile.shp"  # Must have 'Point_Id' field
+# Class value to label mapping
+class_labels = {
+    1: "Urban",
+    2: "Water",
+    3: "Wetland",
+    4: "Kalut_yardang",
+    5: "Marshland",
+    6: "Salty_Land",
+    7: "Clay",
+    8: "Forest",
+    9: "Outcrop",
+    10: "Uncovered_Plain",
+    11: "Sand",
+    12: "Farm_Land",
+    13: "Range_Land"
+}
 
-# Output Excel
-output_excel = "basin_class_summary.xlsx"
+tif_folder = "/home/pouria/git/water-institute/data/basins_charactristics/output/land_cover"
+output_excel = "/home/pouria/git/water-institute/data/basins_charactristics/output/excel/land_cover_12.xlsx"
 
-# Read basins shapefile
-gdf = gpd.read_file(basin_shapefile)
+# Initialize results list
+results = []
 
-# Initialize output dataframe
-all_results = []
-
-# Loop through each .tif file
-for tif_file in os.listdir(tif_folder):
-    if not tif_file.endswith('.tif'):
+# Loop through TIFs
+for filename in os.listdir(tif_folder):
+    if not filename.endswith('.tif'):
         continue
 
-    with rasterio.open(os.path.join(tif_folder, tif_file)) as src:
-        for idx, basin in gdf.iterrows():
-            geom = [basin['geometry']]
-            point_id = basin['Point_Id']
+    # Extract Point_Id from filename
+    match = re.search(r'(\d+)', filename)
+    if not match:
+        print(f"Could not extract Point_Id from {filename}")
+        continue
+    point_id = int(match.group(1))
 
-            try:
-                out_image, out_transform = mask(src, geom, crop=True)
-            except Exception as e:
-                print(f"Failed to mask for basin {point_id} in {tif_file}: {e}")
-                continue
+    # Open TIF and read data
+    tif_path = os.path.join(tif_folder, filename)
+    with rasterio.open(tif_path) as src:
+        data = src.read(1)
 
-            data = out_image[0]
-            data = data[data > 0]  # Remove no-data (assumed to be 0)
+    # Filter out no-data (assumed to be 0)
+    valid_pixels = data[data > 0]
 
-            # Count pixel classes
-            class_counts = dict(Counter(data.flatten()))
-            total_pixels = sum(class_counts.values())
+    # Count pixel values
+    pixel_counts = dict(Counter(valid_pixels.flatten()))
+    total_pixels = sum(pixel_counts.values())
 
-            # Normalize to percentage
-            class_percent = {f"class{int(k)}": round((v / total_pixels) * 100, 2) 
-                             for k, v in class_counts.items()}
+    # Compute percentages using class labels
+    class_percentages = {
+        class_labels[i]: round((pixel_counts.get(i, 0) / total_pixels) * 100, 2)
+        for i in range(1, 14)
+    }
 
-            class_percent["Point_Id"] = point_id
-            class_percent["tif_name"] = tif_file
+    # Add Point_Id to result
+    class_percentages["Point_Id"] = point_id
+    results.append(class_percentages)
 
-            all_results.append(class_percent)
+# Create DataFrame
+df = pd.DataFrame(results)
 
-# Convert to DataFrame
-df = pd.DataFrame(all_results)
-
-# Fill missing class columns with 0
-for i in range(1, 14):
-    col = f'class{i}'
-    if col not in df.columns:
-        df[col] = 0
-df.fillna(0, inplace=True)
+# Ensure all class columns are present
+for label in class_labels.values():
+    if label not in df.columns:
+        df[label] = 0.0
 
 # Reorder columns
-cols = ['Point_Id', 'tif_name'] + [f'class{i}' for i in range(1, 14)]
-df = df[cols]
+ordered_cols = ["Point_Id"] + list(class_labels.values())
+df = df[ordered_cols]
 
 # Save to Excel
 df.to_excel(output_excel, index=False)
-print(f"Saved result to {output_excel}")
+print(f"Saved results to {output_excel}")
