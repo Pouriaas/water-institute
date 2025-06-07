@@ -15,7 +15,7 @@ hydro_attribute=pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input
 
 characteristic = pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input/12_SubWatershed_Characteristics_HydroStations/12_Talesh_Anzali_SubWatershed_Characteristics_HydroStations_4040125.xlsx",sheet_name="Sheet1", skiprows=2).set_index("Point_ID")
 
-# snow = pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input/12_SubWatershed_Characteristics_HydroStations/12_Talesh_Anzali_SubWatershed_Characteristics_HydroStations_4040125.xlsx",sheet_name="Sheet1").set_index("Point_ID")
+snow = pd.read_excel(r"/home/pouria/git/water-institute/data/drmn_input/12_SubWatershed_Characteristics_HydroStations/12_Talesh_Anzali_SubWatershed_Characteristics_HydroStations_4040125.xlsx",sheet_name="Sheet1").set_index("Point_ID")
 
 hypsometric_folder=r"/home/pouria/git/water-institute/data/drmn_input/Hypsometric_Tables"
 files_and_directory = os.listdir(input_file)
@@ -42,12 +42,14 @@ for name in files_and_directory:
     # Get all sheet names
     sheet_names = excel_file.sheet_names
     arr=np.full([9,10],np.nan)
-    sim=pd.DataFrame(arr.T,columns=["Tc (hr)",	"Hydrometry Station Elevation",	"Elevation Range (m)",		"Area (km2)",	"Zone height (m)",	"Snow melt coeff","	Freezing temp (C)",	"Basin_3rd",	"Total Area (km2)"])
-    sim.loc[0, "Basin_3rd"] = hydro_attribute.loc[int(rename), "OID"]
+    sim=pd.DataFrame(arr.T,columns=["Tc (hr)",	"Hydrometry Station Elevation",	"Elevation Range (m) strat","Elevation Range (m) end",		"Area (km2)",	"Zone height (m)",	"Snow melt coeff","	Freezing temp (C)",	"Basin_3rd",	"Total Area (km2)","POINT_X","POINT_Y"])
+    sim.loc[0, "Basin_3rd"] = hydro_attribute.loc[int(rename), "Basin_3rd"]
+    sim.loc[0, "POINT_X"] = hydro_attribute.loc[int(rename), "POINT_X"]
+    sim.loc[0, "POINT_Y"] = hydro_attribute.loc[int(rename), "POINT_Y"]
     sim.loc[0, "Tc (hr)"] = characteristic.loc[int(rename), "Tc(Krp_hr)"]
     sim.loc[0, "Total Area (km2)"] = hypsometric.loc[0, "Cumulative Area (km²)"]
-    # sim.loc[0, "Snow melt coeff"] = snow.loc[sim.loc[0, "Basin_3rd"], "Snow melt coeff"]
-    # sim.loc[0, "Freezing temp (C)"] = snow.loc[sim.loc[0, "Basin_3rd"], "Freezing temp (C)"]
+    sim.loc[0, "Snow melt coeff"] = snow.loc[sim.loc[0, "Basin_3rd"], "Snow melt coeff"]
+    sim.loc[0, "Freezing temp (C)"] = snow.loc[sim.loc[0, "Basin_3rd"], "Freezing temp (C)"]
     TemperatureGradientpath=os.path.join(TemperatureGradientfolder,str(sim.loc[0, "Basin_3rd"])[:-2]+".xlsx")
     TemperatureGradient=pd.read_excel(TemperatureGradientpath)
     
@@ -71,9 +73,9 @@ for name in files_and_directory:
         'End': 'max',
         'Area (km²)': 'sum'
     }).reset_index(drop=True)
-    grouped['Elevation Range (m)'] = grouped['Start'].astype(str) + " - " + grouped['End'].astype(str)
     
-    sim.loc[:len(grouped),"Elevation Range (m)"]=grouped['Elevation Range (m)'][:]
+    sim.loc[:len(grouped),"Elevation Range (m) strat"]=grouped['Start'][:]
+    sim.loc[:len(grouped),"Elevation Range (m) end"]=grouped['End'][:]
     sim.loc[:len(grouped),"Area (km2)"]=grouped['Area (km²)'][:]
     sim.loc[0,"Hydrometry Station Elevation"]=grouped.loc[0,'Start']
     sim.loc[0,"Zone height (m)"]=grouped.loc[0,'End']-grouped.loc[0,'Start']
