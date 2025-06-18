@@ -10,6 +10,11 @@ import shutil
 import subprocess
 from openpyxl import load_workbook
 
+import re
+import pandas as pd
+import openpyxl
+import sys
+
 ##################################################################################
 # CONFIGURABLE
 source_folder = r"C:/Users/pouria/Desktop/UTWI/DrMN/16-019"
@@ -123,8 +128,8 @@ for j in range(1, nEvent + 1):
         for _ in range(24):
             row_ptr += 1
             sh.cell(row=row_ptr, column=9).value = aa
-
-wb.save(os.path.join(dest_folder, xlsm_list[0].replace('.xlsm', '_updated.xlsx')))
+xlsx_path=os.path.join(dest_folder, xlsm_list[0].replace('.xlsm', '_updated.xlsx'))
+wb.save(xlsx_path)
 
 # Step 3: Write .dat output files
 out_path = dest_folder + os.sep
@@ -189,10 +194,281 @@ with open(out_path + f"Pso_G_{code}.dat", "w") as f:
 exe_files = [f for f in os.listdir(dest_folder) if f.endswith('.exe')]
 if exe_files:
     exe_to_run = os.path.join(dest_folder, exe_files[0])
-    subprocess.Popen(
+    result = subprocess.run(
         [exe_to_run],
         cwd=dest_folder,
         creationflags=subprocess.CREATE_NEW_CONSOLE
     )
 else:
     print("No executable found to run.")
+    
+folder_path=dest_folder
+input_excel_path = xlsx_path
+xls = pd.ExcelFile(input_excel_path)
+
+# Identify valid sheets
+sheet_names = [s for s in xls.sheet_names if s != "Geometry"]
+
+# Locate PSO file
+plot_candidates = [f for f in os.listdir(folder_path) if f.startswith("PSO_plot03")]
+if not plot_candidates:
+    print("[!] No PSO_plot03 file found. Skipping.")
+    sys.exit()
+plot_path = os.path.join(folder_path, plot_candidates[0])
+print(f"PSO file found: {plot_path}")
+
+# Read PSO file
+with open(plot_path, "r", encoding='utf-8', errors='ignore') as file:
+    lines = file.readlines()
+
+# Prepare output writer
+output_path = os.path.join(folder_path, "output_plot03.xlsx")
+writer = pd.ExcelWriter(output_path, engine='openpyxl')
+data_frames = {}
+
+# Step 1: Build Observed column
+for sheet_name in sheet_names:
+    df = xls.parse(sheet_name, header=None)
+    df = df.iloc[1:].reset_index(drop=True)
+    header_row = df.iloc[0]
+
+    q_col_candidates = header_row[header_row.astype(str).str.strip().str.contains("Q", case=False, na=False)]
+    if q_col_candidates.empty:
+        print(f"[!] Q column not found in sheet '{sheet_name}'. Skipping.")
+        continue
+
+    q_col_index = q_col_candidates.index[0]
+    observed_data = df[q_col_index].iloc[1:].reset_index(drop=True)
+    output_df = pd.DataFrame({"Observed": observed_data})
+    data_frames[sheet_name] = output_df
+
+# Step 2: Handle ZONE blocks
+current_zone = None
+current_data = []
+
+def process_zone(zone, data_lines):
+    date_str = zone['date'].replace("/", ",")
+    if date_str not in data_frames:
+        return
+
+    df_sheet = xls.parse(date_str, header=None)
+    df_sheet = df_sheet.iloc[1:].reset_index(drop=True)
+    header_row = df_sheet.iloc[0]
+
+    strtq_candidates = header_row[header_row.astype(str).str.strip().str.contains("STRTQ", case=False, na=False)]
+    if strtq_candidates.empty:
+        print(f"[!] STRTQ not found in sheet '{date_str}'. Skipping zone.")
+        return
+
+    strtq_index = strtq_candidates.index[0]
+    strtq_value = df_sheet[strtq_index].iloc[1]
+
+    new_column = []
+    for row in data_lines:
+        parts = row.strip().split()
+        if len(parts) < 3:
+            break
+        try:
+            val2 = float(parts[1])
+            val3 = int(parts[2])
+            if val3 == 1:
+                new_column.append(val2 + float(strtq_value))
+        except:
+            continue
+
+    col_name = f"S{zone['scenario']}E{zone['event']}"
+    df_out = data_frames[date_str]
+    df_out[col_name] = pd.Series(new_column)
+
+# Loop through PSO lines
+for line in lines:
+    line = line.strip()
+    if line.startswith("ZONE T="):
+        if current_zone:
+            process_zone(current_zone, current_data)
+        current_data = []
+        current_zone = {}
+        try:
+            date_part = line.split('"')[1].split()[0]
+            current_zone['date'] = date_part
+            scenario_match = re.search(r"Scenario=\s*(\d+)", line)
+            event_match = re.search(r"Event=\s*(\d+)", line)
+            if scenario_match and event_match:
+                current_zone['scenario'] = scenario_match.group(1)
+                current_zone['event'] = event_match.group(1)
+            else:
+                print(f"[!] Could not extract Scenario or Event in: {line}")
+                continue
+        except:
+            print(f"[!] Malformed ZONE line: {line}")
+            continue
+    elif current_zone:
+        current_data.append(line)
+
+if current_zone:
+    process_zone(current_zone, current_data)
+
+# Save output Excel
+for sheet_name, df in data_frames.items():
+    df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+writer.close()
+print(f"Done. Output saved to: {output_path}")
+
+#ocate PSO file
+plot_candidates = [f for f in os.listdir(folder_path) if f.startswith("PSO_plot04")]
+if not plot_candidates:
+    print("[!] No PSO_plot04 file found. Skipping.")
+    sys.exit()
+plot_path = os.path.join(folder_path, plot_candidates[0])
+print(f"PSO file found: {plot_path}")
+
+# Read PSO file
+with open(plot_path, "r", encoding='utf-8', errors='ignore') as file:
+    lines = file.readlines()
+
+# Prepare output writer
+output_path = os.path.join(folder_path, "output_plot04.xlsx")
+writer = pd.ExcelWriter(output_path, engine='openpyxl')
+data_frames = {}
+
+# Step 1: Build Observed column
+for sheet_name in sheet_names:
+    df = xls.parse(sheet_name, header=None)
+    df = df.iloc[1:].reset_index(drop=True)
+    header_row = df.iloc[0]
+
+    q_col_candidates = header_row[header_row.astype(str).str.strip().str.contains("Q", case=False, na=False)]
+    if q_col_candidates.empty:
+        print(f"[!] Q column not found in sheet '{sheet_name}'. Skipping.")
+        continue
+
+    q_col_index = q_col_candidates.index[0]
+    observed_data = df[q_col_index].iloc[1:].reset_index(drop=True)
+    output_df = pd.DataFrame({"Observed": observed_data})
+    data_frames[sheet_name] = output_df
+
+# Step 2: Handle ZONE blocks
+current_zone = None
+current_data = []
+
+def process_zone(zone, data_lines):
+    date_str = zone['date'].replace("/", ",")
+    if date_str not in data_frames:
+        return
+
+    df_sheet = xls.parse(date_str, header=None)
+    df_sheet = df_sheet.iloc[1:].reset_index(drop=True)
+    header_row = df_sheet.iloc[0]
+
+    strtq_candidates = header_row[header_row.astype(str).str.strip().str.contains("STRTQ", case=False, na=False)]
+    if strtq_candidates.empty:
+        print(f"[!] STRTQ not found in sheet '{date_str}'. Skipping zone.")
+        return
+
+    strtq_index = strtq_candidates.index[0]
+    strtq_value = df_sheet[strtq_index].iloc[1]
+
+    new_column = []
+    for row in data_lines:
+        parts = row.strip().split()
+        if len(parts) < 3:
+            break
+        try:
+            val2 = float(parts[1])
+            val3 = int(parts[2])
+            if val3 == 1:
+                new_column.append(val2 + float(strtq_value))
+        except:
+            continue
+
+    col_name = f"S{zone['scenario']}E{zone['event']}"
+    df_out = data_frames[date_str]
+    df_out[col_name] = pd.Series(new_column)
+
+# Loop through PSO lines
+for line in lines:
+    line = line.strip()
+    if line.startswith("ZONE T="):
+        if current_zone:
+            process_zone(current_zone, current_data)
+        current_data = []
+        current_zone = {}
+        try:
+            date_part = line.split('"')[1].split()[0]
+            current_zone['date'] = date_part
+            scenario_match = re.search(r"Scenario=\s*(\d+)", line)
+            event_match = re.search(r"Event=\s*(\d+)", line)
+            if scenario_match and event_match:
+                current_zone['scenario'] = scenario_match.group(1)
+                current_zone['event'] = event_match.group(1)
+            else:
+                print(f"[!] Could not extract Scenario or Event in: {line}")
+                continue
+        except:
+            print(f"[!] Malformed ZONE line: {line}")
+            continue
+    elif current_zone:
+        current_data.append(line)
+
+if current_zone:
+    process_zone(current_zone, current_data)
+
+# Save output Excel
+for sheet_name, df in data_frames.items():
+    df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+writer.close()
+print(f"Done. Output saved to: {output_path}")
+
+file1 = os.path.join(folder_path, "output_plot03.xlsx")
+file2 = os.path.join(folder_path, "output_plot04.xlsx")
+output_file = os.path.join(folder_path, "output.xlsx")
+
+if not os.path.exists(file1) or not os.path.exists(file2):
+    print(f"Missing files in {folder_path}")
+    sys.exit()
+
+
+excel1 = pd.read_excel(file1, sheet_name=None)
+excel2 = pd.read_excel(file2, sheet_name=None)
+
+writer = pd.ExcelWriter(output_file, engine='openpyxl')
+
+for sheet_name in excel1.keys():
+    if sheet_name not in excel2:
+        continue
+
+    df1 = excel1[sheet_name]
+    df2 = excel2[sheet_name]
+
+    if 'Observed' not in df1.columns or 'Observed' not in df2.columns:
+        print(f"Missing 'Observed' column in {sheet_name} of {folder_path}")
+        continue
+
+    # Observed
+    observed = df1['Observed'].reset_index(drop=True)
+
+    # reversing
+    df1_other = df1.drop(columns=['Observed']).iloc[::-1].reset_index(drop=True)
+    df2_other = df2.drop(columns=['Observed']).iloc[::-1].reset_index(drop=True)
+
+    
+    final_data = pd.concat([observed, df1_other, df2_other], axis=1)
+
+  
+    top_row = [''] + ['New'] * df1_other.shape[1] + ['PSO'] * df2_other.shape[1]
+    col_names = ['Observed'] + list(df1_other.columns) + list(df2_other.columns)
+
+   
+    final_data.columns = col_names
+
+    
+    top_df = pd.DataFrame([top_row], columns=col_names)
+    final_data = pd.concat([top_df, final_data], ignore_index=True)
+
+    
+    final_data.to_excel(writer, sheet_name=sheet_name, index=False)
+
+writer.close()
+print(f"Processed: {folder_path}")
