@@ -23,8 +23,8 @@ class_labels = {
     13: "Range_Land"
 }
 
-tif_folder = "/home/pouria/git/water-institute/data/basins_charactristics/output/land_cover"
-output_excel = "/home/pouria/git/water-institute/data/basins_charactristics/output/excel/land_cover_12.xlsx"
+tif_folder = "/home/pouria/git/water-institute/data/basins_charactristics/output/land_cover/415"
+output_excel = "/home/pouria/git/water-institute/data/basins_charactristics/output/excel/41/415/land_cover.xlsx"
 
 # Initialize results list
 results = []

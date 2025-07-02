@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun 20 20:42:50 2025
+
+@author: pouria
+"""
+
 import os
 import glob
 import numpy as np
@@ -5,10 +13,9 @@ import rasterio
 import pandas as pd
 
 # Folder with clipped NDVI TIFFs
-ndvi_folder = '/home/pouria/git/water-institute/data/basins_charactristics/output/ndvi_cliped/413'
-path = '/home/pouria/git/water-institute/data/basins_charactristics/output/excel/41/413'
-output_excel=os.path.join(path,"ndvi.xlsx")
-os.makedirs(path, exist_ok=True)
+ndvi_folder = '/home/pouria/git/water-institute/data/basins_charactristics/output/dem_cliped415'
+output_excel = '/home/pouria/git/water-institute/data/basins_charactristics/output/excel/41/415/dem_415.xlsx'
+# os.makedirs(output_excel, exist_ok=True)
 # Collect results
 results = []
 
@@ -24,14 +31,18 @@ for tif_path in glob.glob(os.path.join(ndvi_folder, 'ndvi_*.tif')):
             continue
 
         # Compute statistics
-        mean = np.mean(data)
+        # mean = np.mean(data)
+        # mini = np.min(data)
+        # maxi = np.max(data)
         p5 = np.percentile(data, 5)
         p50 = np.percentile(data, 50)
         p95 = np.percentile(data, 95)
 
         results.append({
             'Point_ID': int(point_id),
-            'Mean': round(mean, 4),
+            # 'min': round(mini, 4),
+            # 'Mean': round(mean, 4),
+            # 'max': round(maxi, 4),
             'P5': round(p5, 4),
             'P50': round(p50, 4),
             'P95': round(p95, 4)

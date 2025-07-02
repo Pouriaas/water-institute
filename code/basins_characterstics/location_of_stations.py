@@ -17,9 +17,9 @@ import pyogrio
 from joblib import Parallel, delayed
 
 # Load shapefile and initialize region mask
-countries = gpd.read_file(r"/home/pouria/git/water-institute/data/basins_charactristics/input/shapefiles/14 AllPoint SubWatershed/14_SubWatershed_All_4040217_Merged.shp")
+countries = gpd.read_file(r"/home/pouria/git/water-institute/data/basins_charactristics/input/shapefiles/41 AllPoint SubWatershed/415_SubWatershed_AllPoint_4040226_Merged.shp")
 countries = countries.to_crs(4326) # Ensure it's in WGS84 geographic CRS
-output_excel_path = r"/home/pouria/git/water-institute/data/basins_charactristics/output/excel/14/location.xlsx"
+output_excel_path = r"/home/pouria/git/water-institute/data/basins_charactristics/output/excel/41/415/location.xlsx"
 indexes = list(range(len(countries)))
 countries_mask_poly = regionmask.Regions(
     name='Name',

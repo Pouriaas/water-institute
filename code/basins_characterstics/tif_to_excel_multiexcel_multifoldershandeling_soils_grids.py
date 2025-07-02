@@ -12,10 +12,11 @@ import numpy as np
 import pandas as pd
 import rasterio
 from collections import defaultdict
+from openpyxl import load_workbook
 
 # Path to the main directory containing feature folders
-main_dir = "/home/pouria/git/water-institute/data/basins_charactristics/output/soilgrids_cliped"
-output_path = "/home/pouria/git/water-institute/data/basins_charactristics/output/excel/soilgrids_12.xlsx"
+main_dir = "/home/pouria/git/water-institute/data/basins_charactristics/output/soilgrids_cliped/14"
+output_path = "/home/pouria/git/water-institute/data/basins_charactristics/output/excel/14/soilgrids.xlsx"
 
 # Dictionary to hold stats: {point_id: {feature: [mean, p5, p50, p95]}}
 data = defaultdict(dict)
@@ -59,7 +60,7 @@ all_features = sorted(features)
 columns = [(feature, stat) for feature in all_features for stat in ['mean', 'p5', 'p50', 'p95']]
 multi_columns = pd.MultiIndex.from_tuples(columns)
 
-df = pd.DataFrame(index=all_point_ids, columns=multi_columns)
+df = pd.DataFrame(columns=multi_columns)
 
 # Fill DataFrame
 for point_id, stats_dict in data.items():
@@ -67,16 +68,22 @@ for point_id, stats_dict in data.items():
         for i, stat in enumerate(['mean', 'p5', 'p50', 'p95']):
             df.loc[point_id, (feature, stat)] = values[i]
 
-# Drop rows where all values are NaN
-df.dropna(how='all', inplace=True)
-
-# Sort rows and columns
-df.sort_index(inplace=True)
-df.sort_index(axis=1, level=0, inplace=True)
-
-# ✅ Fix: set index name to avoid blank row in Excel
-df.index.name = "point_id"
 
 # Save to Excel
 df.to_excel(output_path, merge_cells=True)
-print(f"✅ Excel file saved to: {output_path}")
+
+# Load the existing Excel file
+wb = load_workbook(output_path)
+
+# Select the active worksheet (or specify by name)
+ws = wb.active  # or wb['SheetName']
+
+# Add two names in the first and second row, first column (A1 and A2)
+ws['A1'] = 'Point_ID'  # Replace 'Name1' with your first name
+ws['A2'] = 'Point_ID'  # Replace 'Name2' with your second name
+
+# Delete the entire third row
+ws.delete_rows(3)  # Deletes row number 3
+
+# Save the changes
+wb.save(output_path)

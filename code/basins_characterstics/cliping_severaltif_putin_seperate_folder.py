@@ -14,9 +14,10 @@ from joblib import Parallel, delayed
 
 # === Paths ===
 input_tif_dir = "/home/pouria/git/water-institute/data/basins_charactristics/input/soil_grids"
-shapefile_path = "/home/pouria/git/water-institute/data/basins_charactristics/input/12 AllPoint SubWatershed/12_SubWatershed_All_4040123_Merged.shp"
-output_dir = "/home/pouria/git/water-institute/data/basins_charactristics/output/soilgrids_cliped"
-n_jobs = -1  # Use all CPU cores
+shapefile_path = "/home/pouria/git/water-institute/data/basins_charactristics/input/shapefiles/41 AllPoint SubWatershed/415_SubWatershed_AllPoint_4040226_Merged.shp"
+output_dir = "/home/pouria/git/water-institute/data/basins_charactristics/output/soilgrids_cliped/415"
+os.makedirs(output_dir, exist_ok=True)
+n_jobs = 5 # Use all CPU cores
 
 # === Load Shapefile ===
 gdf = gpd.read_file(shapefile_path)

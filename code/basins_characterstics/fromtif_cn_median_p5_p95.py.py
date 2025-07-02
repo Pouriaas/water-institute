@@ -17,6 +17,8 @@ import pyogrio
 from joblib import Parallel, delayed
 import rioxarray 
 
+
+output_excel_path = r"/home/pouria/git/water-institute/data/basins_charactristics/output/dem_excel/soiltype_12.xlsx"
 # --- IMPORTANT CORRECTION HERE ---
 # The 'countries' variable MUST be your shapefile (vector data) defining the basins.
 # Please ensure this path points to your actual basin shapefile.
@@ -255,7 +257,7 @@ cc = cc[new_column_order]
 # --- END REORDERING ---
 
 # Save the results to an Excel file with the updated name
-output_excel_path = r"/home/pouria/git/water-institute/data/basins_charactristics/output/dem_excel/soiltype_12.xlsx"
+
 os.makedirs(os.path.dirname(output_excel_path), exist_ok=True) # Ensure output directory exists
 cc.to_excel(output_excel_path, index=False) # index=False prevents writing the DataFrame index to Excel
 print(f"Results saved to: {output_excel_path}")
